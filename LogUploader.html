@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+	  <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"> 
+	  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <script type="text/javascript" src="https://www.dropbox.com/static/api/1/dropins.js" id="dropboxjs" data-app-key="2oyc0sgek56n35k"></script>
+    <title>Upload your Logs - LeafLogger</title>
+    <link rel="stylesheet" type="text/css" href="css/loginstyle.css" />
+    <link rel="stylesheet" href="css/chart1css.css" />  
+        
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" />    
+    
+	  <script src="js/modernizr.custom.63321.js"></script>
+	  <!--[if lte IE 7]><style>.main{display:none;} .support-note .note-ie{display:block;}</style><![endif]-->
+    <script>
+      $(document).ready(function() {
+        $('#spinner').hide();
+        
+        /* initialize spinner to hidden */
+        $('#viewchart').click(function() {
+          window.location.replace('chart1.html');        
+        });
+        
+      });
+   
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1><strong>Upload Logs</strong></h1>
+      </header>
+
+      <div id="maincontainer" style="clear: both; padding: 10px; height: 325px; width: 75%;display: block; margin-left: auto; margin-right: auto;border:2px solid #000000; ">
+        Choose a CSV file containing the logs from Leaf Spy.  Duplicate entries will automatically be ignored. 
+        <BR><BR>
+        By default your data can only be seen by you. In future releases you will be able to choose which trips you would like to share with the Leaf Spy community.
+        <BR><BR>
+        <form enctype="multipart/form-data">
+          <input name="file" type="file" /><br />
+        </form>
+        <progress name='progress' id='progress' style="width:0px; float: left"></progress>
+        <BR>
+        <div id='spinner' style='float: left'>Upload complete.  Inserting into database<img src='images/spinner_16x16.gif'></div>
+        <div id='results' name='results'></div>
+
+        <div id='dropboxstuff' name='dropboxstuff' style='float: left; clear: both; margin: 0px;'>
+          or:
+          <input type="dropbox-chooser" name="selected-file" id="db-chooser"/>
+        </div>
+
+        <div id='viewchart' class='navbuttons' style='position:absolute; bottom:10px; clear: both;'><B><center>View Chart</center></B></div>
+
+        <script type="text/javascript">
+          // add an event listener to a Chooser button
+          document.getElementById("db-chooser").addEventListener("DbxChooserSuccess",
+            function(e) {
+              alert("Feature coming soon.  Here's the chosen file: " + e.files[0].link)
+            }, 
+          false);
+          
+          $(':file').change(function(){
+            $('#progress').width('200px');
+            doTheUpload();
+          });
+          
+          //file upload thanks to http://stackoverflow.com/questions/166221/how-can-i-upload-files-asynchronously-with-jquery
+          function doTheUpload() {
+            $('#dropboxstuff').hide();
+            var formData = new FormData($('form')[0]);
+            $.ajax({
+              url: 'LogUpload.php',  //Server script to process data
+              type: 'POST',
+              xhr: function() {  // Custom XMLHttpRequest
+                var myXhr = $.ajaxSettings.xhr();
+                if(myXhr.upload){ // Check if upload property exists
+                  myXhr.upload.addEventListener('progress',progressHandlingFunction, false); // For handling the progress of the upload
+                }
+                return myXhr;
+              },
+              //Ajax events
+              //beforeSend: beforeSendHandler,
+              success: completeHandler,
+              error: errorHandler,
+              // Form data
+              data: formData,
+              //Options to tell jQuery not to process data or worry about content-type.
+              cache: false,
+              contentType: false,
+              processData: false
+            });
+          }
+          
+          function completeHandler(e) {
+            //[{"processed":393,"dups":393,"errors":0,"inserted":0}] 
+            $('#spinner').hide();
+            $('#progress').hide();
+            obj = JSON.parse(e);
+            console.log(obj);
+            theString = "<h2>Upload successful!</h2>";
+            theString += "<table>";
+            theString += "<tr><td><b>Processed:</b> </td><td>" + obj.processed + "</td></tr>";
+            theString += "<tr><td><b>Duplicates:</b> </td><td>" + obj.dups + "</td></tr>";
+            theString += "<tr><td><b>Errors:</b> </td><td>" + obj.errors + "</td></tr>";
+            theString += "<tr><td><b>Inserted:</b> </td><td>" + obj.inserted + "</td></tr>";
+            theString += "</table>";
+            
+            $('#results').html(theString);
+          }
+          
+          function errorHandler(e) {
+            console.log("Error: " . e);
+          }
+          
+          function progressHandlingFunction(e){
+            if(e.lengthComputable){
+              if(e.loaded == e.total) {
+                $('#spinner').show();
+              }
+              $('progress').attr({value:e.loaded,max:e.total});
+            }
+          }
+        </script>
+      </div>
+    </div>
+  </body>
+</html>

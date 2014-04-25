@@ -1,0 +1,560 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>LeafLogs Example</title>
+
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
+    <script src="js/jquery.dataTables.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.3.0/build/cssreset/reset-min.css">
+    <link rel="stylesheet" href="css/datatable.css" />        
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" />    
+    <script src="js/jquery.selectboxes.js"></script>
+    <link rel="stylesheet" href="css/chart1css.css" />  
+    
+   <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?v=3.13&amp;sensor=false"></script>
+   <script type="text/javascript" src="js/markerwithlabel.js"></script>
+   <script type="text/javascript" src="js/fnReloadAjax.js"></script>   
+    <script type="text/javascript">
+    var markersArray = [];
+    var positionsArray = [];
+    var thePath;
+    var defaultStart = "2013-09-24%2012:00:00";
+    var defaultEnd = "2013-09-24%2013:00:00";
+
+    $(function() {
+      $( ".datepicker" ).datepicker({
+        showOtherMonths: true,
+        selectOtherMonths: true
+      });
+      $( "#submitter" ).click(function() {
+        var serializedData = $("#pickthedates").serialize();
+        alert("data is " + serializedData);
+        $.ajax({
+          type: "POST",
+          data:{"start":$('#startdate').val(),"end":$('#enddate').val()},
+          url: "CoordinatesFeed.php",
+          success: function(data) {
+            processCoordinateData(data);
+          }
+        });
+        
+      });
+    });
+
+    initHighcharts(defaultStart, defaultEnd);
+    
+    function initHighcharts(start,end) {
+    $(function () {
+      Highcharts.Data.prototype.dateFormats['Y-m-d h:m:s'] = {
+        regex: '^([0-9]{1,2})\/([0-9]{1,2})\/([0-9]{2}) [0-9]{2}\:[0-9]{2}\:[0-9]{2}\$',
+        parser: function (match) {
+          return Date.UTC(+('20' + match[3]), match[1] - 1, +match[2], match[4], match[5], match[6]);
+        }
+      };
+
+      // Get the CSV and create the chart
+      $.get('SOCFeed.php?start=' + start + "&end=" + end, function (csv) {
+        $('#container').highcharts({
+          data: {
+            csv: csv
+          },
+
+          title: {
+            text: 'SOC'
+          },
+          xAxis: {
+            type: 'datetime',
+            ordinal: false,
+            tickInterval: 25, // 10 minutes
+            tickWidth: 0,
+            gridLineWidth: 1,
+            labels: {
+              align: 'left',
+                x: 3,
+                y: -3
+            }
+          },
+          yAxis: [{ // left y axis
+            title: {
+              text: null
+            },
+            labels: {
+              align: 'left',
+              x: 3,
+              y: 16,
+              formatter: function() {
+                return Highcharts.numberFormat(this.value, 0);
+              }
+            },
+            showFirstLabel: false
+          }, 
+          { // right y axis
+            linkedTo: 0,
+            gridLineWidth: 0,
+            opposite: true,
+            title: {
+              text: null
+            },
+            labels: {
+              align: 'right',
+              x: -3,
+              y: 16,
+              formatter: function() {
+                 return Highcharts.numberFormat(this.value, 0);
+              }
+            },
+            showFirstLabel: false
+          }],
+          legend: {
+            align: 'left',
+            verticalAlign: 'top',
+            y: 20,
+            floating: true,
+              borderWidth: 0
+          },
+          tooltip: {
+            shared: true,
+            crosshairs: true
+          },
+          plotOptions: {
+            series: {
+              cursor: 'pointer',
+              point: {
+                events: {
+                  click: function() {
+                    //console.log(this);
+                    hs.htmlExpand(null, {
+                      pageOrigin: {
+                        x: this.pageX,
+                        y: this.pageY
+                      },
+                      headingText: this.series.name,
+                      maincontentText: Highcharts.dateFormat('%A, %b %e, %Y', this.x) +':<br/> '+ this.y +' visits', width: 200
+                    });
+                  }
+                }
+              },
+              marker: {
+                enabled: false,
+                lineWidth: 1
+              }
+            }
+          },
+          series: [{
+            type: 'spline',
+            name: 'SOC',
+            lineWidth: 4,
+            marker: {
+              radius: 4
+            }
+          },
+          {
+            type: 'spline',
+            name: 'GIDs',
+            lineWidth: 4,
+            marker: {
+              radius: 4
+            }
+          }]
+        });
+      });
+    });
+    }
+
+    function initHighchartsThermal(start,end) {
+    $(function () {
+      Highcharts.Data.prototype.dateFormats['Y-m-d h:m:s'] = {
+        regex: '^([0-9]{1,2})\/([0-9]{1,2})\/([0-9]{2}) [0-9]{2}\:[0-9]{2}\:[0-9]{2}\$',
+        parser: function (match) {
+          return Date.UTC(+('20' + match[3]), match[1] - 1, +match[2], match[4], match[5], match[6]);
+        }
+      };
+
+      // Get the CSV and create the chart
+      $.get('ThermalData.php?start=' + start + "&end=" + end, function (csv) {
+        $('#containerThermal').highcharts({
+          chart: {
+	          events: {
+	        	  load: function() {
+                /* hide series called "empty" */
+                for(var n = 1; n <= this.series.length; n ++) {
+                  if(this.series[n].name == "empty") {
+                    this.series[n].hide();
+                    this.series[n].name = "";                    
+                  }
+                }
+	        	  }
+	          }
+	        },
+          data: {
+            csv: csv
+          },
+
+          title: {
+            text: 'Thermal'
+          },
+          xAxis: {
+            type: 'datetime',
+            ordinal: false,
+            tickInterval: 25, // 10 minutes
+            tickWidth: 0,
+            gridLineWidth: 1,
+            labels: {
+              align: 'left',
+                x: 3,
+                y: -3
+            }
+          },
+          yAxis: [{ // left y axis
+            title: {
+              text: null
+            },
+            labels: {
+              align: 'left',
+              x: 3,
+              y: 16,
+              formatter: function() {
+                return Highcharts.numberFormat(this.value, 0);
+              }
+            },
+            showFirstLabel: false
+          }, 
+          { // right y axis
+            linkedTo: 0,
+            gridLineWidth: 0,
+            opposite: true,
+            title: {
+              text: null
+            },
+            labels: {
+              align: 'right',
+              x: -3,
+              y: 16,
+              formatter: function() {
+                 return Highcharts.numberFormat(this.value, 0);
+                 
+              }
+            },
+            showFirstLabel: false
+          }],
+          legend: {
+            align: 'left',
+            verticalAlign: 'top',
+            y: 20,
+            floating: true,
+              borderWidth: 0
+          },
+          tooltip: {
+            shared: true,
+            crosshairs: true,
+            shadow: false,
+            useHTML: true,
+            enabled: true
+          },
+          plotOptions: {
+            series: {
+              cursor: 'pointer',
+              marker: {
+                enabled: false,
+                lineWidth: 0
+              }
+            }
+          },
+          series: [{
+            type: 'spline',
+            name: 'Bat 1',
+            lineWidth: 4,
+            marker: {
+              radius: 4
+            }
+          },
+          {
+            type: 'spline',
+            name: 'Bat 2',
+            lineWidth: 4,
+            marker: {
+              radius: 4
+            }
+          },
+          {
+            type: 'spline',
+            name: 'Bat 3',
+            lineWidth: 4,
+            marker: {
+              radius: 4
+            }
+          },
+          {
+            type: 'spline',
+            name: 'Bat 4',
+            lineWidth: 4,
+            marker: {
+              radius: 4
+            }
+          }, 
+          {
+            type: 'spline',
+            name: 'Ambient',
+            lineWidth: 4,
+            marker: {
+              radius: 4
+            }
+          } 
+
+]
+        });
+      });
+    });
+    }
+
+    $('#container').highcharts;
+    $('#containerThermal').highcharts;
+    </script>
+                
+    <script>
+      var map;
+      function initialize() {
+
+        
+        var mapOptions = {
+          zoom: 8,
+          center: new google.maps.LatLng(37.722121,-122.478676),
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        };
+
+        map = new google.maps.Map(document.getElementById('map-canvas'),mapOptions);
+        loadCoordinates(defaultStart,defaultEnd);
+      }
+
+      //function loadScript() {
+      //  var script = document.createElement('script');
+      //  script.type = 'text/javascript';
+      //  script.src = 'https://maps.googleapis.com/maps/api/js?v=3&sensor=false&callback=initialize';
+      //  document.body.appendChild(script);        
+      //}
+
+      window.onload = initialize;
+
+      function loadCoordinates(start,end) {
+        $.ajax({
+          type: "GET",
+          url: "CoordinatesFeed.php?start=" + start + "&end=" + end,
+          dataType: "text",
+          success: function(data) {
+            processCoordinateData(data);
+          }
+        });
+      }
+      
+      function processCoordinateData(data) {
+        positionsArray = new google.maps.MVCArray();
+        var count = 0;
+        
+        var allTextLines = data.split(/\r\n|\n/);
+        
+        var bounds = new google.maps.LatLngBounds();
+        for (var i=1; i<allTextLines.length; i++) {
+          var data = allTextLines[i].split(',');
+          var thePosition = new google.maps.LatLng(data[0],data[1]);
+
+          /* display every 5th marker and the end marker */
+          if((i == 1) || i % 5 == 0 || (i == allTextLines.length - 1)) {
+            var marker1 = new MarkerWithLabel({
+              position: thePosition,
+              draggable: false,
+              map: map,
+              labelContent: i,
+              labelAnchor: new google.maps.Point(22, 0),
+              labelClass: "labels", // the CSS class for the label
+              labelStyle: {opacity: 0.75},
+              icon: {}
+            });         
+
+            google.maps.event.addListener(marker1, "mouseover", function (e) { highlightChartPoint(this.labelContent) });
+            google.maps.event.addListener(marker1, "click", function (e) { highlightChartPoint(this.labelContent) });
+            markersArray.push(marker1);
+          }
+          
+
+          if(data[0] != 0 && data[1] != 0) {
+            positionsArray.push(thePosition);
+            bounds.extend(new google.maps.LatLng(data[0],data[1]));
+          }
+        }
+        
+        map.fitBounds(bounds);
+        
+        doPath(positionsArray);        
+        //thePath.getPath().push(new google.maps.LatLng(37.622131,-122.478676));
+                
+      }
+      
+      function doPath(positionsArray) {
+        thePath = new google.maps.Polyline({
+          strokeColor: '#FF0000',
+          strokeOpacity: 0.5,
+          strokeWeight: 5
+        });
+      
+        thePath.setPath(positionsArray);
+        thePath.setMap(map);
+        google.maps.event.addListener(thePath, 'mouseover', function (event) {
+            //console.log(event);
+            //console.log("edge is " + event.edge + " path is " + event.path + " and vertex is " + event.vertex);
+            //console.log("lat: " + event.position.lat + " lng: " + event.position.lng);            
+        });
+      }
+      
+      function highlightChartPoint(pointNumber) {
+        $('#container').highcharts().series[0].points[pointNumber].select()
+      }
+    </script>                
+  </head>
+<body>
+  <script src="js/highcharts.js"></script>
+  <script src="js/modules/data.js"></script>
+  <script src="js/modules/exporting.js"></script>
+
+  <!-- Additional files for the Highslide popup effect -->
+  <script type="text/javascript" src="http://www.highcharts.com/highslide/highslide-full.min.js"></script>
+  <script type="text/javascript" src="http://www.highcharts.com/highslide/highslide.config.js" charset="utf-8"></script>
+  <link rel="stylesheet" type="text/css" href="http://www.highcharts.com/highslide/highslide.css" />
+
+
+  <!--<form name="pickthedates" id="pickthedates">
+  <p>Start Date: <input type="text" id="startdate" class="datepicker" />
+  End Date: <input type="text" id="enddate" class="datepicker" />
+  <a href='#' id="submitter">Submit</a>-->
+  <div id="topnavbar" style="width:100%; float:left; margin-left: 20px;">  
+    <div id='fullname' name='fullname' style='float: left; width:27%'></div>
+    <div id='totaltrips' name='totaltrips' style='float: left; width:27%'>---------</div>
+    <div id='logout' class='navbuttons'><B><center>Log out</center></B></div>
+    <div id='upload' class='navbuttons'><B><center>Upload</center></B></div>
+  </div>
+  
+  <div id="topinfobar" style="width:100%; float:left; margin-left: 20px;">
+    <div id="selectarea" style="float:left">Select a trip:</div><select name="myselect" style="float:left" id="myselect" onChange="pulldownChange(this)"><option value="|" selected>----------</option></select>
+    <div name="summary" id="summary" style="float:left; margin-left: 20px"></div>
+  </div>
+  <BR>
+  <div id="chartandmap" style="float: left; width:100%">
+    <div id="container" style="float: left; width: 33%; height: 400px; margin: 0 auto"></div>
+    <div id="containerThermal" style="float: left; width: 33%; height: 400px; margin: 0 auto"></div>    
+    <div id="map-canvas" style="float: left; width: 33%; height: 400px; margin: 0 auto"></div>
+  </div>
+  <script>
+    $(document).ready(function() {
+      $('#logout').click(function() {
+        $.getJSON('Logout.php', function(json) {
+          window.location.replace('Login.html');
+          //updateData('2013-1-1 00:00:00','2013-1-1 00:00:00');
+        });
+      });
+      $('#upload').click(function() {
+          window.location.replace('LogUploader.html');        
+      });
+
+      
+      $('#example').dataTable( {
+        "bProcessing": true,
+        "iDisplayLength":100,
+        "sScrollY": "400px",
+		    "bPaginate": false,
+        "aaSorting":[],
+        "sAjaxSource":"alldata.php?start=" + defaultStart + "&end=" + defaultEnd,
+      });
+      
+      
+      $.getJSON('GetUserInfo.php', function(json) {
+        if(json.fullname == undefined) {
+          $('#fullname').html("<a href='Login.html'>You must be logged in to view data</a>");
+          $('#upload').hide();
+          $('#logout').html("<B><center>Log in</b></center>");
+        }
+        else {
+          $('#fullname').html("<b>Welcome back</b> " + json.fullname);
+        }
+      });
+      
+      
+      $.getJSON('FindDateRanges.php', function(json) {
+        $('#totaltrips').html("<b>Total trips:</b> " + json.length);
+        //console.log(json);
+        for(var eachthing in json) {
+          $("#myselect").addOption(json[eachthing]['start'] + "|" + json[eachthing]['end'], json[eachthing]['start'] + " to " + json[eachthing]['end'] + " ( " + json[eachthing]['records'] + ")");
+        }
+        setTimeout(function() { 
+          $("#myselect").val($("#myselect option:last").val());
+          pulldownChange($("#myselect option:last").val());        
+        }, 1000);
+        
+      });
+      
+      loadTripSummaryData(defaultStart, defaultEnd);
+    });
+
+  function loadTripSummaryData(start, end) {
+      $.getJSON('TripSummary.php?start=' + start + "&end=" + end, function(json) {
+        var output = "<B>Length: </b>" + json['trip_length'] + " mins |  " +
+                     "<b>Start: </B>" + numberWithCommas(json['start']) + "  |  " +
+                     "<b>End: </B>" + numberWithCommas(json['end']) + "  |  " +
+                     "<b>Dist: </B>" + json['trip'] + " " + json['distance_units'] + " |  " +
+                     "<b>Avg Spd: </B>" + json['averageSpeed'] + " " + json['speed_units'] +  " |  " +
+                     "<b>SOC Diff: </B>" + json['socDifference'] + "%  |  " +
+                     "<b>GIDS Diff: </B>" + json['gidsDifference'];
+          $("#summary").html(output);
+      });            
+  }
+  
+  function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  
+  function updateDataTables(start, end) {
+    thetable = $('#example').dataTable();
+    thetable.bProcessing = true;
+    thetable.fnReloadAjax('alldata.php?start=' + start + '&end=' + end);
+    //thetable.fnDraw();
+  }
+  
+  function updateData(start, end) {
+    /* remmed: not doing markers now */
+    clearMarkersOnMap();
+    if(thePath) {
+      thePath.setPath([]);
+    }
+    loadTripSummaryData(start, end);
+    loadCoordinates(start,end); 
+    initHighcharts(start,end);
+    initHighchartsThermal(start,end);
+    updateDataTables(start,end);
+  }
+  
+  function clearMarkersOnMap() {
+    for (var i = 0; i < markersArray.length; i++ ) {
+      markersArray[i].setMap(null);
+    }
+    markersArray = [];  
+  }
+  
+  function pulldownChange(theobject) {
+    //console.log("Object type is " + Object.prototype.toString.call(theobject));
+    if(Object.prototype.toString.call(theobject) == "[object HTMLSelectElement]" ) {
+      startandend = theobject.value.split("|");
+    }
+    else {
+      //console.log("String object and it is " + theobject)
+      startandend = theobject.split("|");
+    }
+    //console.log(theobject.value);
+      //  //var startandend = this.value.split("|");
+      //console.log("start is " + startandend[0] + " and end is " + startandend[1]);
+      updateData(startandend[0],startandend[1]);
+  }
+  </script>
+
+  <table id='example' border="0" cellpadding="0" cellspacing="0" class="pretty"><thead><tr><th></th><th>Date/Time</th><th>Lat</th><th>Lon</th><th>Elevation</th><th>Speed (mph)</th><th>SOC</th><th>GIDS</th></thead><tbody><tr><td></td><td></td><td></td><td></td></tr></tbody></table>
+</body>
+</html>

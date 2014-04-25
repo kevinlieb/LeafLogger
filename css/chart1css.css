@@ -1,0 +1,43 @@
+/* 
+    Document   : chart1css
+    Created on : Jul 15, 2013, 8:23:07 PM
+    Author     : klieberman
+    Description:
+        Purpose of the stylesheet follows.
+*/
+
+root { 
+  display: block;
+}
+
+
+ .labels {
+   color: red;
+   background-color: white;
+   font-family: "Lucida Grande", "Arial", sans-serif;
+   font-size: 8px;
+   font-weight: normal;
+   text-align: center;
+   width: 20px;     
+   border: 2px solid black;
+   white-space: nowrap;
+}
+
+.navbuttons {
+  margin-left: auto; 
+  margin-right: auto; 
+  padding: 2px; 
+  float: left; 
+  width:10%; 
+  background-color:#a0bcc4; 
+  border-width:1px; 
+  border-style: solid;
+  color:#1f1f1f;
+  cursor: pointer;
+}
+
+.navbuttons:hover {
+  padding: 4px;
+  color:#000000;
+  cursor: hand;
+}
