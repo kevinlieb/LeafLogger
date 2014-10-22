@@ -11,17 +11,23 @@
     <link rel="stylesheet" href="css/datatable.css" />        
     <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" />    
     <script src="js/jquery.selectboxes.js"></script>
+    <script src="js/jQueryRotate.js"></script>
+    <script src="js/LeafLoggerFunctions.js"></script>
     <link rel="stylesheet" href="css/chart1css.css" />  
     
    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?v=3.13&amp;sensor=false"></script>
    <script type="text/javascript" src="js/markerwithlabel.js"></script>
    <script type="text/javascript" src="js/fnReloadAjax.js"></script>   
-    <script type="text/javascript">
+   <script src="js/DistanceBetweenPoints.js"></script>
+  
+   <script type="text/javascript">
     var markersArray = [];
     var positionsArray = [];
     var thePath;
     var defaultStart = "2013-09-24%2012:00:00";
     var defaultEnd = "2013-09-24%2013:00:00";
+    var geoData = {};
+    var theDataTable;
 
     $(function() {
       $( ".datepicker" ).datepicker({
@@ -56,7 +62,7 @@
 
       // Get the CSV and create the chart
       $.get('SOCFeed.php?start=' + start + "&end=" + end, function (csv) {
-        $('#container').highcharts({
+        $('#containerSOC').highcharts({
           data: {
             csv: csv
           },
@@ -133,11 +139,21 @@
                       headingText: this.series.name,
                       maincontentText: Highcharts.dateFormat('%A, %b %e, %Y', this.x) +':<br/> '+ this.y +' visits', width: 200
                     });
-                  }
+                  },
+                  mouseOver: function() {
+                    console.log(this.category);      
+                  }  
+                  
                 }
               },
               marker: {
-                enabled: false,
+                states: {
+                  select: {
+                    fillColor: 'red',
+                    lineWidth: 2
+                  }
+                },
+                enabled: true,
                 lineWidth: 1
               }
             }
@@ -309,7 +325,7 @@
     });
     }
 
-    $('#container').highcharts;
+    $('#containerSOC').highcharts;
     $('#containerThermal').highcharts;
     </script>
                 
@@ -357,7 +373,10 @@
         var bounds = new google.maps.LatLngBounds();
         for (var i=1; i<allTextLines.length; i++) {
           var data = allTextLines[i].split(',');
-          var thePosition = new google.maps.LatLng(data[0],data[1]);
+          var thePosition = new google.maps.LatLng(data[1],data[2]);
+          
+          /* save the point for later rollover detection */
+          geoData[data[0]] = thePosition;
 
           /* display every 5th marker and the end marker */
           if((i == 1) || i % 5 == 0 || (i == allTextLines.length - 1)) {
@@ -370,7 +389,7 @@
               labelClass: "labels", // the CSS class for the label
               labelStyle: {opacity: 0.75},
               icon: {}
-            });         
+            });
 
             google.maps.event.addListener(marker1, "mouseover", function (e) { highlightChartPoint(this.labelContent) });
             google.maps.event.addListener(marker1, "click", function (e) { highlightChartPoint(this.labelContent) });
@@ -378,9 +397,21 @@
           }
           
 
-          if(data[0] != 0 && data[1] != 0) {
-            positionsArray.push(thePosition);
-            bounds.extend(new google.maps.LatLng(data[0],data[1]));
+          /* Skip this check if somehow coordinates are appearing as undefined */
+          if(typeof data === "undefined" || typeof data[1] === "undefined" || typeof data[2] === "undefined") {
+            //console.log("It Is UnDefined");
+          }
+          else {
+            if(data[1] != 0 && data[2] != 0) {
+              positionsArray.push(thePosition);
+              try {
+                //console.log("Doing " + data[1] + "," + data[2]);
+                bounds.extend(new google.maps.LatLng(data[1],data[2]));
+              }
+              catch(err) {
+                /* discard the error */
+              }
+            }
           }
         }
         
@@ -392,6 +423,7 @@
       }
       
       function doPath(positionsArray) {
+        console.log("in do path");
         thePath = new google.maps.Polyline({
           strokeColor: '#FF0000',
           strokeOpacity: 0.5,
@@ -401,14 +433,36 @@
         thePath.setPath(positionsArray);
         thePath.setMap(map);
         google.maps.event.addListener(thePath, 'mouseover', function (event) {
-            //console.log(event);
-            //console.log("edge is " + event.edge + " path is " + event.path + " and vertex is " + event.vertex);
-            //console.log("lat: " + event.position.lat + " lng: " + event.position.lng);            
+            var theDistance;
+            var minDistance = 9999;
+            var pointAtMinDistance = 0;
+          
+            if(1==1) {
+              console.log(event.latLng);
+              //console.log("edge is " + event.edge + " path is " + event.path + " and vertex is " + event.vertex);
+              console.log("lat: " + event.latLng.d + " lng: " + event.latLng.e);
+              $('#example').find('tr').each(function() { console.log($(this).find("td").removeClass("highlightz")); });
+              $('#example tr').each(function() { 
+                theDistance = distance($(this).find("td:eq(2)").html(), $(this).find("td:eq(3)").html(), event.latLng.d, event.latLng.e);
+                console.log("distance calculated is " + theDistance);
+                if(theDistance < minDistance) {
+                    console.log("Closest");
+                    minDistance = theDistance;
+                    pointAtMinDistance = $(this).find("td:eq(0)").html();
+                    console.log("Top is " + $(this).offset().top);
+                    $('#example').DataTable().parent().scrollTop($(this).offset().top - $(this).parent().offset().top);
+                }
+              });
+              
+              /* highlight that closest point */
+              $('#example').find('tr:eq(' + pointAtMinDistance + ')').each(function() { console.log($(this).find("td").addClass("highlightz")); });
+            }
         });
       }
       
       function highlightChartPoint(pointNumber) {
-        $('#container').highcharts().series[0].points[pointNumber].select()
+        console.log("hover over " + pointNumber);
+        $('#containerSOC').highcharts().series[0].points[pointNumber].select();
       }
     </script>                
   </head>
@@ -417,10 +471,6 @@
   <script src="js/modules/data.js"></script>
   <script src="js/modules/exporting.js"></script>
 
-  <!-- Additional files for the Highslide popup effect -->
-  <script type="text/javascript" src="http://www.highcharts.com/highslide/highslide-full.min.js"></script>
-  <script type="text/javascript" src="http://www.highcharts.com/highslide/highslide.config.js" charset="utf-8"></script>
-  <link rel="stylesheet" type="text/css" href="http://www.highcharts.com/highslide/highslide.css" />
 
 
   <!--<form name="pickthedates" id="pickthedates">
@@ -432,6 +482,7 @@
     <div id='totaltrips' name='totaltrips' style='float: left; width:27%'>---------</div>
     <div id='logout' class='navbuttons'><B><center>Log out</center></B></div>
     <div id='upload' class='navbuttons'><B><center>Upload</center></B></div>
+    <div id='elevation' class='navbuttons'><B><center>Elevation</center></B></div>
   </div>
   
   <div id="topinfobar" style="width:100%; float:left; margin-left: 20px;">
@@ -440,7 +491,7 @@
   </div>
   <BR>
   <div id="chartandmap" style="float: left; width:100%">
-    <div id="container" style="float: left; width: 33%; height: 400px; margin: 0 auto"></div>
+    <div id="containerSOC" style="float: left; width: 33%; height: 400px; margin: 0 auto"></div>
     <div id="containerThermal" style="float: left; width: 33%; height: 400px; margin: 0 auto"></div>    
     <div id="map-canvas" style="float: left; width: 33%; height: 400px; margin: 0 auto"></div>
   </div>
@@ -455,15 +506,34 @@
       $('#upload').click(function() {
           window.location.replace('LogUploader.html');        
       });
+      $('#elevation').click(function() {
+          window.location.replace('ElevationGraph.php');        
+      });
 
       
-      $('#example').dataTable( {
+      theDataTable = $('#example').dataTable( {
         "bProcessing": true,
         "iDisplayLength":100,
         "sScrollY": "400px",
 		    "bPaginate": false,
         "aaSorting":[],
         "sAjaxSource":"alldata.php?start=" + defaultStart + "&end=" + defaultEnd,
+        "fnDrawCallback": function(oSettings,json) {
+          $('.deleteImage').hover(
+            function() {
+              $(this).rotate({animateTo:360,duration:500})
+            }, function() {
+              $(this).rotate({animateTo:0})
+            })
+        },          
+        "aoColumnDefs":[
+          {
+            "aTargets":[10],
+            "mRender": function (data, type, full) {
+              return "<img class='deleteImage' name='" + data + "' src='images/circle_red_x.png' height=20 width=20 onClick='doTheIgnore(this);'>";
+            }
+          }                  
+        ]
       });
       
       
@@ -478,23 +548,53 @@
         }
       });
       
-      
-      $.getJSON('FindDateRanges.php', function(json) {
-        $('#totaltrips').html("<b>Total trips:</b> " + json.length);
-        //console.log(json);
-        for(var eachthing in json) {
-          $("#myselect").addOption(json[eachthing]['start'] + "|" + json[eachthing]['end'], json[eachthing]['start'] + " to " + json[eachthing]['end'] + " ( " + json[eachthing]['records'] + ")");
-        }
-        setTimeout(function() { 
-          $("#myselect").val($("#myselect option:last").val());
-          pulldownChange($("#myselect option:last").val());        
-        }, 1000);
+      $.getJSON('ReadTripFromSession.php', function(json) {
+        var start = json["start"];
+        var end = json["start"];
+        
+        $.getJSON('FindDateRanges.php', function(json) {
+          $('#totaltrips').html("<b>Total trips:</b> " + json.length);
+          //console.log(json);
+          var counter = 0;
+          var toSelect = -1;
+          for(var eachthing in json) {
+            $("#myselect").addOption(json[eachthing]['start'] + "|" + json[eachthing]['end'], json[eachthing]['start'] + " to " + json[eachthing]['end'] + " ( " + json[eachthing]['records'] + ")");
+            if(start && start.length > 0 && json[eachthing]['start'] == start) {
+              toSelect = counter;
+            }
+            counter ++;
+          }
+          console.log("Counter is: " + counter);
+          setTimeout(function() { 
+            if(toSelect == -1) {
+              $("#myselect").val($("#myselect option:last").val());
+              pulldownChange($("#myselect option:last").val());
+            }
+            else {
+              /* this worked: $("#myselect option:eq(14)").attr('selected', 'selected'); */              
+              $('#myselect option:eq(' + (toSelect + 1) + ')').attr('selected','selected');
+              pulldownChange($('#myselect option:eq(' + (toSelect + 1) + ')').val());
+            }
+            
+          }, 1000);
+        });
         
       });
       
       loadTripSummaryData(defaultStart, defaultEnd);
+      
     });
 
+  function doTheIgnore(dateToIgnore) {
+    console.log(dateToIgnore);
+    console.log("name is " + $(dateToIgnore).attr('name'));
+    
+    $.get('IgnorePoint.php?date=' + $(dateToIgnore).attr('name'), function () {
+      pulldownChange($("#myselect option:selected").val());
+    });
+  }
+  
+  
   function loadTripSummaryData(start, end) {
       $.getJSON('TripSummary.php?start=' + start + "&end=" + end, function(json) {
         var output = "<B>Length: </b>" + json['trip_length'] + " mins |  " +
@@ -525,6 +625,7 @@
     if(thePath) {
       thePath.setPath([]);
     }
+    saveTripToSession(start, end);
     loadTripSummaryData(start, end);
     loadCoordinates(start,end); 
     initHighcharts(start,end);
@@ -555,6 +656,6 @@
   }
   </script>
 
-  <table id='example' border="0" cellpadding="0" cellspacing="0" class="pretty"><thead><tr><th></th><th>Date/Time</th><th>Lat</th><th>Lon</th><th>Elevation</th><th>Speed (mph)</th><th>SOC</th><th>GIDS</th></thead><tbody><tr><td></td><td></td><td></td><td></td></tr></tbody></table>
+  <table id='example' border="0" cellpadding="0" cellspacing="0" class="pretty"><thead><tr><th></th><th>Date/Time</th><th>Lat</th><th>Lon</th><th><center>Elevation<BR>(GPS)</center></th><th><center>Elevation<BR>(Corrected)<center></th><th>Speed (mph)</th><th>SOC</th><th>GIDS</th><th>SOH</th><th></th></thead><tbody><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
 </body>
 </html>

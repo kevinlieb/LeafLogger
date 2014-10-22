@@ -6,16 +6,26 @@
 	  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
     <title>LeafLogger - Login</title>
     <link rel="stylesheet" type="text/css" href="css/loginstyle.css" />
+    <link rel="stylesheet" type="text/css" href="css/uniform.default.css" />
         
-    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.js"></script>
     <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" />    
-    
+    <script src="js/jquery.uniform.js"></script>
 	  <script src="js/modernizr.custom.63321.js"></script>
 	  <!--[if lte IE 7]><style>.main{display:none;} .support-note .note-ie{display:block;}</style><![endif]-->
+    <style>
+      .biggerpadding { padding:5px; }
+      div#users-contain { width: 350px; margin: 15px 0; }
+      div#users-contain table { margin: 1em 0; border-collapse: collapse; width: 100%; }
+      div#users-contain table td, div#users-contain table th { border: 0px solid #eee; padding: .6em 10px; text-align: left; }
+      .ui-dialog .ui-state-error { padding: .3em; }
+      .validateTips { border: 1px solid transparent; padding: 0.3em; }
+    </style>
     <script>
       $(document).ready(function() {
         $("input:text:visible:first").focus();
+        
         $(".submit").click(function(e) { 
           e.preventDefault(); 
           $.post("Login.php",{email:$('#email').val(),password:$('#password').val()},function(json) {
@@ -27,26 +37,133 @@
             }
           });
         });
+        
+        $( "#create-user" ).button().on( "click", function() {
+          dialog.dialog( "open" );
+        });
+        
+        $("#dialog-form").uniform();
       });
         
    
     </script>
+    
+  <script>
+    var dialog;
+    $(document).ready(function() {
+      var form,
+ 
+      // From http://www.whatwg.org/specs/web-apps/current-work/multipage/states-of-the-type-attribute.html#e-mail-state-%28type=email%29
+      emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
+      name = $( "#newusername" ),
+      email = $( "#newuseremail" ),
+      allFields = $( [] ).add( email ).add( password ),
+      tips = $( ".validateTips" );
+ 
+    function updateTips( t ) {
+      tips
+        .text( t )
+        .addClass( "ui-state-highlight" );
+      setTimeout(function() {
+        tips.removeClass( "ui-state-highlight", 1500 );
+      }, 500 );
+    }
+ 
+    function checkLength( o, n, min, max ) {
+      if ( o.val().length > max || o.val().length < min ) {
+        o.addClass( "ui-state-error" );
+        updateTips( "Length of " + n + " must be between " +
+          min + " and " + max + "." );
+        return false;
+      } else {
+        return true;
+      }
+    }
+ 
+    function checkRegexp( o, regexp, n ) {
+      if ( !( regexp.test( o.val() ) ) ) {
+        o.addClass( "ui-state-error" );
+        updateTips( n );
+        return false;
+      } else {
+        return true;
+      }
+    }
+ 
+    function addUser() {
+      var valid = true;
+      allFields.removeClass( "ui-state-error" );
+ 
+      valid = valid && checkLength( email, "email", 6, 80 );
+ 
+      valid = valid && checkRegexp( email, emailRegex, "eg. ui@jquery.com" );
+ 
+      if ( valid ) {
+        /* do the async call here */ 
+        var theEmailAddress = $('#newuseremail').val();
+        $.post("CreateUser.php",{ newuseremail:theEmailAddress,
+                                  newuserfullname:$('#newuserfullname').val(), 
+                                  distance:$('#distance').val(),
+                                  temperature:$('#temperature').val()},
+          function(json, status) {
+            var parsedJson = $.parseJSON(json);
+            if(parsedJson.success == true) {
+              dialog.dialog("close");
+              $('#LoginFailure').html("Your login has been emailed to " + theEmailAddress);
+            }
+            else {
+              $('#LoginFailure').html(parsedJson.errors);
+              dialog.dialog("close");//do something better here!
+            }
+        });
+      }
+      return valid;
+    }
+ 
+    dialog = $( "#dialog-form" ).dialog({
+      autoOpen: false,
+      height: 300,
+      width: 430,
+      modal: true,
+      buttons: {
+        "Create an account": addUser,
+        Cancel: function() {
+          dialog.dialog( "close" );
+        }
+      },
+      close: function() {
+        form[ 0 ].reset();
+        allFields.removeClass( "ui-state-error" );
+      }
+    });
+ 
+    form = dialog.find( "form" ).on( "submit", function( event ) {
+      event.preventDefault();
+      addUser();
+    });
+ 
+    $( "#create-user" ).button().on( "click", function() {
+      dialog.dialog( "open" );
+    });
+    });
+  </script>
+ 
+
+     
   </head>
   <body>
     <div class="container">
       <header>
         <h1><strong>LeafLogs</strong> interactive log viewer</h1>
-        <h2>Login</h2>
+        <h2>Login or <a href='#' id='create-user'>Create an account</h2>
 				
         <div class="support-note">
           <span class="note-ie">Sorry, only modern browsers.</span>
         </div>
-
       </header>
 
       
       <section class="main">
-        
         <form class="form-1" onSubmit='false;'>
           <div id='LoginFailure' style='color: #ff0000; font-weight: bold'></div>
           <p class="field">
@@ -61,7 +178,65 @@
             <button type="submit" name="submit"><i class="icon-arrow-right icon-large"></i></button>
           </p>
         </form>
+        
       </section>
+      
     </div>
+    <div id="dialog-form" title="Create an account">
+      <p class="validateTips">All form fields are required.</p>
+ 
+      <form>
+        <fieldset>
+          <div style="clear: left" class='biggerpadding'>
+            <div style='width:30%;float:left;' class='biggerpadding'>
+              <label for="newuseremail">Email</label>
+            </div>
+            <div style='width:60%;float:left;' class='biggerpadding'>
+              <input type="text" name="newuseremail" id="newuseremail" class="text ui-widget-content ui-corner-all">
+            </div>
+          <div>
+            
+          <div style="clear: left" class='biggerpadding'>
+            <div style='width:30%;float:left;' class='biggerpadding'>            
+              <label for="newuserfullname">Full Name</label>
+            </div>
+            <div style='width:60%;float:left;' class='biggerpadding'>
+              <input type="text" name="newuserfullname" id="newuserfullname" class="text ui-widget-content ui-corner-all">
+            </div>
+          </div>
+
+          <div id="line2" style="clear: left" class='biggerpadding'>
+            <div style='width:30%;float:left;'>
+              <label for="distance">Distance</label>
+            </div>
+            <div style='width:20%;float:left;'>
+              <input type="radio" id='distance' name='distance' value='Miles' checked>
+              <label for='distMiles'>Miles</label>
+            </div>
+            <div style='width:30%;float:left;'>
+              <input type="radio"  id='distance' name='distance' value='Kilometers'>
+              <label for='distKilos'>Kilometers</label>
+            </div>
+          </div>
+
+          <div id="line3" style="clear: left" class='biggerpadding'>
+            <div style='width:30%;float:left;'>
+              <label for="temperature">Temperature</label>
+            </div>
+            <div style='width: 20%; float: left; clear:none'>
+              <input type="radio" name='temperature' id='temperature' value='F' checked>
+              <label for='tempf'>F</label>
+            </div>
+            <div style='width: 30%; float: left; clear:none'>
+              <input type="radio" name='temperature' id='temperature' value='C'>
+              <label for='tempc'>C</label>
+            </div>
+            </div>
+          </div>
+                  
+          
+        </fieldset>
+      </form>
+    </div>    
   </body>
 </html>

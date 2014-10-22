@@ -1,12 +1,48 @@
+-- phpMyAdmin SQL Dump
+-- version 3.2.5
+-- http://www.phpmyadmin.net
+--
+-- Host: localhost
+-- Generation Time: Oct 22, 2014 at 05:18 PM
+-- Server version: 5.0.89
+-- PHP Version: 5.2.17
+
 SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
+
+--
+-- Database: `leaflogs`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `evstatus`
+--
+
+CREATE TABLE IF NOT EXISTS `evstatus` (
+  `evstatus_id` int(11) NOT NULL auto_increment,
+  `evstatus_users_id` int(11) NOT NULL,
+  `evstatus_locked` int(1) NOT NULL,
+  PRIMARY KEY  (`evstatus_id`),
+  KEY `evstatus_id` (`evstatus_id`)
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=2 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `leaflogs`
+--
 
 CREATE TABLE IF NOT EXISTS `leaflogs` (
   `leaflogs_id` int(11) NOT NULL auto_increment,
   `leaflogs_user_id` int(11) NOT NULL,
+  `leaflogs_ignore` tinyint(1) NOT NULL,
+  `leaflogs_elevation_checked` tinyint(1) NOT NULL,
   `leaflogs_timestamp` datetime NOT NULL,
   `leaflogs_lat` decimal(9,6) NOT NULL,
   `leaflogs_lon` decimal(9,6) NOT NULL,
   `leaflogs_elevation` int(11) NOT NULL,
+  `leaflogs_elevation_lookedup` decimal(8,3) NOT NULL,
   `leaflogs_speed` int(11) NOT NULL,
   `leaflogs_gids` int(11) NOT NULL,
   `leaflogs_soc` int(11) NOT NULL,
@@ -148,10 +184,20 @@ CREATE TABLE IF NOT EXISTS `leaflogs` (
   `leaflogs_charge_mode` int(11) NOT NULL,
   `leaflogs_onboard_charger_power` int(11) NOT NULL,
   `leaflogs_drive_mode` int(11) NOT NULL,
+  `leaflogs_hvolt1` decimal(8,3) NOT NULL,
+  `leaflogs_hvolt2` decimal(8,3) NOT NULL,
   PRIMARY KEY  (`leaflogs_id`),
   KEY `leaflogs_timestamp` (`leaflogs_timestamp`),
-  KEY `leaflogs_user_id` (`leaflogs_user_id`)
-) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+  KEY `leaflogs_user_id` (`leaflogs_user_id`),
+  KEY `leaflogs_lat` (`leaflogs_lat`),
+  KEY `leaflogs_lon` (`leaflogs_lon`)
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=346376 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `loginlog`
+--
 
 CREATE TABLE IF NOT EXISTS `loginlog` (
   `loginlog_id` int(11) NOT NULL auto_increment,
@@ -159,7 +205,13 @@ CREATE TABLE IF NOT EXISTS `loginlog` (
   `loginlog_users_id` int(11) NOT NULL,
   PRIMARY KEY  (`loginlog_id`),
   KEY `loginlog_id` (`loginlog_id`)
-) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=54 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `trips`
+--
 
 CREATE TABLE IF NOT EXISTS `trips` (
   `trips_id` int(11) NOT NULL auto_increment,
@@ -168,7 +220,13 @@ CREATE TABLE IF NOT EXISTS `trips` (
   `trips_datetime_start` datetime NOT NULL,
   `trips_datetime_end` datetime NOT NULL,
   PRIMARY KEY  (`trips_id`)
-) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1926 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users`
+--
 
 CREATE TABLE IF NOT EXISTS `users` (
   `users_id` int(11) NOT NULL auto_increment,
@@ -179,7 +237,9 @@ CREATE TABLE IF NOT EXISTS `users` (
   `users_is_admin` tinyint(4) NOT NULL,
   `users_account_disabled` tinyint(4) NOT NULL,
   `users_units` char(6) NOT NULL,
+  `users_units_distance` varchar(10) NOT NULL,
+  `users_units_temperature` varchar(10) NOT NULL,
+  `users_trip_delimiter` int(11) NOT NULL,
   PRIMARY KEY  (`users_id`)
-) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=66 ;
 
-INSERT INTO `users` VALUES (1,'admin@admin.com','4cb9c8a8048fd02294477fcb1a41191a','admin admin',0,1,0,'US')

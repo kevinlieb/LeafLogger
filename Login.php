@@ -29,6 +29,7 @@
           $_SESSION['users_id'] = $user['users_id'];
           $_SESSION['users_is_admin'] = $user['users_is_admin'];
           $_SESSION['users_units'] = $user['users_units'];
+          $_SESSION['users_trip_delimiter'] = $user['users_trip_delimiter'];
           $toReturn =  json_encode(array("success"=>true));
         }
       }
