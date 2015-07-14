@@ -16,18 +16,21 @@
     <link rel="stylesheet" href="css/chart1css.css" />  
     
    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?v=3.13&amp;sensor=false"></script>
-   <script type="text/javascript" src="js/markerwithlabel.js"></script>
+   <script type="text/javascript" src="js/markerwithlabel_1_1_10.js"></script>
    <script type="text/javascript" src="js/fnReloadAjax.js"></script>   
    <script src="js/DistanceBetweenPoints.js"></script>
   
    <script type="text/javascript">
     var markersArray = [];
     var positionsArray = [];
-    var thePath;
+    var thePath = [];
+    var pathNumber = 0;
     var defaultStart = "2013-09-24%2012:00:00";
     var defaultEnd = "2013-09-24%2013:00:00";
     var geoData = {};
     var theDataTable;
+    var allTableData;//new
+    var refreshDataDoodad = true;
 
     $(function() {
       $( ".datepicker" ).datepicker({
@@ -48,6 +51,33 @@
         
       });
     });
+    
+    $(function() {
+      $( "#slider-range" ).slider({
+        range: true,
+        min: 0,
+        max: 1000,
+        values: [ 0, 1000 ],
+          stop: function( event, ui ) {            
+            console.log("Slider start: " + ui.values[ 0 ] + " and end " + ui.values[ 1 ]);
+            var theLength = allTableData.length;
+            //console.log("Length: " + theLength);
+            var theSliderStart = parseInt(theLength * (ui.values[ 0 ] / 1000));
+            var theSliderEnd = parseInt(theLength * (ui.values[ 1 ] / 1000));
+            
+            var sliderStartRow = allTableData[theSliderStart];
+            var sliderEndRow = allTableData[theSliderEnd - 1];
+            //console.log(sliderEndRow);
+            var theSliderStartDate = sliderStartRow[1];
+            var theSliderEndDate = sliderEndRow[1];
+            //console.log("Slider start Date: " + theSliderStartDate + " and end " + theSliderEndDate);
+            updateData(theSliderStartDate, theSliderEndDate);
+            //$( "#amount" ).val(ui.values[ 0 ] + " - " + ui.values[ 1 ] );
+          }
+        });
+        //$( "#amount" ).val( "zz$" + $( "#slider-range" ).slider( "values", 0 ) + " " + $( "#slider-range" ).slider( "values", 1 ) );
+    });
+     
 
     initHighcharts(defaultStart, defaultEnd);
     
@@ -63,6 +93,14 @@
       // Get the CSV and create the chart
       $.get('SOCFeed.php?start=' + start + "&end=" + end, function (csv) {
         $('#containerSOC').highcharts({
+          chart: {
+	          events: {
+	        	  load: function() {
+                $('#containerSOC').highcharts().xAxis[0].update({"tickInterval":(this.series[0].points.length / 5)});
+              }
+            }
+          },
+          
           data: {
             csv: csv
           },
@@ -73,7 +111,7 @@
           xAxis: {
             type: 'datetime',
             ordinal: false,
-            tickInterval: 25, // 10 minutes
+            tickInterval: 1000,
             tickWidth: 0,
             gridLineWidth: 1,
             labels: {
@@ -153,7 +191,7 @@
                     lineWidth: 2
                   }
                 },
-                enabled: true,
+                enabled: false,
                 lineWidth: 1
               }
             }
@@ -195,12 +233,13 @@
 	          events: {
 	        	  load: function() {
                 /* hide series called "empty" */
-                for(var n = 1; n <= this.series.length; n ++) {
+                for(var n = 0; n < this.series.length; n ++) {
                   if(this.series[n].name == "empty") {
                     this.series[n].hide();
                     this.series[n].name = "";                    
                   }
                 }
+                $('#containerThermal').highcharts().xAxis[0].update({"tickInterval":(this.series[0].points.length / 5)});
 	        	  }
 	          }
 	        },
@@ -214,7 +253,7 @@
           xAxis: {
             type: 'datetime',
             ordinal: false,
-            tickInterval: 25, // 10 minutes
+            tickInterval: 1000, 
             tickWidth: 0,
             gridLineWidth: 1,
             labels: {
@@ -365,37 +404,21 @@
       }
       
       function processCoordinateData(data) {
-        positionsArray = new google.maps.MVCArray();
+        positionsArray[0] = new google.maps.MVCArray();
+        var usage = 0;
+        var color = 0;
+        var previousUsage = 0;
+        var previousColor = 0;
         var count = 0;
+        var positionsArrayNumber = 0;
+        var firstPoint = true;
         
         var allTextLines = data.split(/\r\n|\n/);
         
         var bounds = new google.maps.LatLngBounds();
+        var thePosition;
         for (var i=1; i<allTextLines.length; i++) {
           var data = allTextLines[i].split(',');
-          var thePosition = new google.maps.LatLng(data[1],data[2]);
-          
-          /* save the point for later rollover detection */
-          geoData[data[0]] = thePosition;
-
-          /* display every 5th marker and the end marker */
-          if((i == 1) || i % 5 == 0 || (i == allTextLines.length - 1)) {
-            var marker1 = new MarkerWithLabel({
-              position: thePosition,
-              draggable: false,
-              map: map,
-              labelContent: i,
-              labelAnchor: new google.maps.Point(22, 0),
-              labelClass: "labels", // the CSS class for the label
-              labelStyle: {opacity: 0.75},
-              icon: {}
-            });
-
-            google.maps.event.addListener(marker1, "mouseover", function (e) { highlightChartPoint(this.labelContent) });
-            google.maps.event.addListener(marker1, "click", function (e) { highlightChartPoint(this.labelContent) });
-            markersArray.push(marker1);
-          }
-          
 
           /* Skip this check if somehow coordinates are appearing as undefined */
           if(typeof data === "undefined" || typeof data[1] === "undefined" || typeof data[2] === "undefined") {
@@ -403,7 +426,34 @@
           }
           else {
             if(data[1] != 0 && data[2] != 0) {
-              positionsArray.push(thePosition);
+              thePosition = new google.maps.LatLng(data[1],data[2]);
+          
+              /* save the point for later rollover detection */
+              geoData[data[0]] = thePosition;              
+              positionsArray[positionsArrayNumber].push(thePosition);
+              
+              usage = data[3];
+              color = data[4];
+              /* for the first point just initialize the previousUsage */
+              if(firstPoint) {
+                firstPoint = false;
+                previousUsage = usage;
+                previousColor = color;
+                dropMarker(thePosition, "Start","m/kWh:" + usage);
+              }
+              else {
+                /* If the usage has changed... */
+                if(usage != previousUsage) {
+                  previousUsage = usage;
+                  previousColor = color;
+                  doPath(positionsArray[positionsArrayNumber], color);
+                  positionsArrayNumber ++;
+                  positionsArray[positionsArrayNumber] = new google.maps.MVCArray();
+                  positionsArray[positionsArrayNumber].push(thePosition);
+
+                  dropMarker(thePosition, i,"m/kWh:" + usage);
+                }                  
+              }
               try {
                 //console.log("Doing " + data[1] + "," + data[2]);
                 bounds.extend(new google.maps.LatLng(data[1],data[2]));
@@ -414,25 +464,47 @@
             }
           }
         }
+        dropMarker(thePosition, "End","m/kWh:" + previousUsage);
         
         map.fitBounds(bounds);
         
-        doPath(positionsArray);        
+        console.log("Total segments: " + positionsArrayNumber);
+        doPath(positionsArray[positionsArrayNumber],color);        
         //thePath.getPath().push(new google.maps.LatLng(37.622131,-122.478676));
                 
       }
       
-      function doPath(positionsArray) {
+      function dropMarker(thePosition, markerNumber, markerInfo) {
+        var marker1 = new MarkerWithLabel({
+          position: thePosition,
+          draggable: false,
+          map: map,
+          labelContent: markerNumber,
+          labelAnchor: new google.maps.Point(22, 0),
+          labelClass: "labels", // the CSS class for the label
+          labelStyle: {opacity: 0.75},
+          icon:"images/clear.gif"
+        });
+
+        // @TODO: do something with markerInfo
+        google.maps.event.addListener(marker1, "mouseover", function (e) { highlightChartPoint(this.labelContent); this.labelContent = markerInfo; this.draw; });
+        google.maps.event.addListener(marker1, "mouseout", function (e) { /*marker1.setContent(markerNumber);*/ });        
+        google.maps.event.addListener(marker1, "click", function (e) { highlightChartPoint(this.labelContent) });
+        markersArray.push(marker1);      
+      }
+      
+      function doPath(positionsArray, color) {
         console.log("in do path");
-        thePath = new google.maps.Polyline({
-          strokeColor: '#FF0000',
-          strokeOpacity: 0.5,
+        pathNumber += 1;
+        thePath[pathNumber] = new google.maps.Polyline({
+          strokeColor: color,
+          strokeOpacity: 0.9,
           strokeWeight: 5
         });
       
-        thePath.setPath(positionsArray);
-        thePath.setMap(map);
-        google.maps.event.addListener(thePath, 'mouseover', function (event) {
+        thePath[pathNumber].setPath(positionsArray);
+        thePath[pathNumber].setMap(map);
+        google.maps.event.addListener(thePath[pathNumber], 'mouseover', function (event) {
             var theDistance;
             var minDistance = 9999;
             var pointAtMinDistance = 0;
@@ -488,6 +560,10 @@
   <div id="topinfobar" style="width:100%; float:left; margin-left: 20px;">
     <div id="selectarea" style="float:left">Select a trip:</div><select name="myselect" style="float:left" id="myselect" onChange="pulldownChange(this)"><option value="|" selected>----------</option></select>
     <div name="summary" id="summary" style="float:left; margin-left: 20px"></div>
+
+    <div style="float:left; width: 90%;">
+      <div id="slider-range" style="width:100%;"></div>
+    </div>  
   </div>
   <BR>
   <div id="chartandmap" style="float: left; width:100%">
@@ -518,6 +594,24 @@
 		    "bPaginate": false,
         "aaSorting":[],
         "sAjaxSource":"alldata.php?start=" + defaultStart + "&end=" + defaultEnd,
+        "fnServerData": function(sSource, aoData, fnCallback) {
+            console.log("fnServerData");
+            $.getJSON(sSource, aoData, function(json) {
+              fnCallback(json);
+              if(refreshDataDoodad == true) {
+                allTableData = $('#example tbody tr').map(function(i) {
+                  var row = {};
+                   $(this).find('td').each(function(i) {
+                     //var rowName = columns[i];
+                     row[i] = $(this).text();
+                   });
+                   return(row);
+                }).get();
+                refreshDataDoodad = false;
+              }
+            });
+        },
+
         "fnDrawCallback": function(oSettings,json) {
           $('.deleteImage').hover(
             function() {
@@ -622,9 +716,12 @@
   function updateData(start, end) {
     /* remmed: not doing markers now */
     clearMarkersOnMap();
-    if(thePath) {
-      thePath.setPath([]);
+    for(n = 0; n <= pathNumber; n++) {
+      if(thePath[n]) {
+        thePath[n].setPath([]);
+      }
     }
+
     saveTripToSession(start, end);
     loadTripSummaryData(start, end);
     loadCoordinates(start,end); 
@@ -641,6 +738,7 @@
   }
   
   function pulldownChange(theobject) {
+    refreshDataDoodad = true;
     //console.log("Object type is " + Object.prototype.toString.call(theobject));
     if(Object.prototype.toString.call(theobject) == "[object HTMLSelectElement]" ) {
       startandend = theobject.value.split("|");
@@ -653,6 +751,10 @@
       //  //var startandend = this.value.split("|");
       //console.log("start is " + startandend[0] + " and end is " + startandend[1]);
       updateData(startandend[0],startandend[1]);
+      
+      /* change the slider back to its original positions */
+      $( "#slider-range" ).slider("values",0,0);
+      $( "#slider-range" ).slider("values",1,1000);
   }
   </script>
 
