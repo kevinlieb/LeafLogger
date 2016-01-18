@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>LeafLogs Example</title>
+    <title>LeafLogger - Overview </title>
 
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
@@ -31,26 +31,6 @@
     var theDataTable;
     var allTableData;//new
     var refreshDataDoodad = true;
-
-    $(function() {
-      $( ".datepicker" ).datepicker({
-        showOtherMonths: true,
-        selectOtherMonths: true
-      });
-      $( "#submitter" ).click(function() {
-        var serializedData = $("#pickthedates").serialize();
-        alert("data is " + serializedData);
-        $.ajax({
-          type: "POST",
-          data:{"start":$('#startdate').val(),"end":$('#enddate').val()},
-          url: "CoordinatesFeed.php",
-          success: function(data) {
-            processCoordinateData(data);
-          }
-        });
-        
-      });
-    });
     
     $(function() {
       $( "#slider-range" ).slider({
@@ -61,21 +41,16 @@
           stop: function( event, ui ) {            
             console.log("Slider start: " + ui.values[ 0 ] + " and end " + ui.values[ 1 ]);
             var theLength = allTableData.length;
-            //console.log("Length: " + theLength);
             var theSliderStart = parseInt(theLength * (ui.values[ 0 ] / 1000));
             var theSliderEnd = parseInt(theLength * (ui.values[ 1 ] / 1000));
             
             var sliderStartRow = allTableData[theSliderStart];
             var sliderEndRow = allTableData[theSliderEnd - 1];
-            //console.log(sliderEndRow);
             var theSliderStartDate = sliderStartRow[1];
             var theSliderEndDate = sliderEndRow[1];
-            //console.log("Slider start Date: " + theSliderStartDate + " and end " + theSliderEndDate);
             updateData(theSliderStartDate, theSliderEndDate);
-            //$( "#amount" ).val(ui.values[ 0 ] + " - " + ui.values[ 1 ] );
           }
         });
-        //$( "#amount" ).val( "zz$" + $( "#slider-range" ).slider( "values", 0 ) + " " + $( "#slider-range" ).slider( "values", 1 ) );
     });
      
 
@@ -168,7 +143,6 @@
               point: {
                 events: {
                   click: function() {
-                    //console.log(this);
                     hs.htmlExpand(null, {
                       pageOrigin: {
                         x: this.pageX,
@@ -179,7 +153,8 @@
                     });
                   },
                   mouseOver: function() {
-                    console.log(this.category);      
+                    console.log("mouseOver: " + this.category); 
+                    /* !!!! */
                   }  
                   
                 }
@@ -455,7 +430,6 @@
                 }                  
               }
               try {
-                //console.log("Doing " + data[1] + "," + data[2]);
                 bounds.extend(new google.maps.LatLng(data[1],data[2]));
               }
               catch(err) {
@@ -494,7 +468,6 @@
       }
       
       function doPath(positionsArray, color) {
-        console.log("in do path");
         pathNumber += 1;
         thePath[pathNumber] = new google.maps.Polyline({
           strokeColor: color,
@@ -510,24 +483,25 @@
             var pointAtMinDistance = 0;
           
             if(1==1) {
-              console.log(event.latLng);
+              console.log("The event:");
+              console.log(event);
+              //console.log(event.latLng);
               //console.log("edge is " + event.edge + " path is " + event.path + " and vertex is " + event.vertex);
               console.log("lat: " + event.latLng.d + " lng: " + event.latLng.e);
-              $('#example').find('tr').each(function() { console.log($(this).find("td").removeClass("highlightz")); });
-              $('#example tr').each(function() { 
-                theDistance = distance($(this).find("td:eq(2)").html(), $(this).find("td:eq(3)").html(), event.latLng.d, event.latLng.e);
-                console.log("distance calculated is " + theDistance);
+              $('#LeafTable').find('tr').each(function() { $(this).find("td").removeClass("highlightz"); });
+              $('#LeafTable tr').each(function() { 
+                theDistance = distance($(this).find("td:eq(2)").html(), $(this).find("td:eq(3)").html(), event.latLng.G, event.latLng.K);
                 if(theDistance < minDistance) {
-                    console.log("Closest");
+                    console.log("Closest: " + theDistance);
                     minDistance = theDistance;
                     pointAtMinDistance = $(this).find("td:eq(0)").html();
                     console.log("Top is " + $(this).offset().top);
-                    $('#example').DataTable().parent().scrollTop($(this).offset().top - $(this).parent().offset().top);
+                    $('#LeafTable').DataTable().parent().scrollTop($(this).offset().top - $(this).parent().offset().top);
                 }
               });
               
               /* highlight that closest point */
-              $('#example').find('tr:eq(' + pointAtMinDistance + ')').each(function() { console.log($(this).find("td").addClass("highlightz")); });
+              $('#LeafTable').find('tr:eq(' + pointAtMinDistance + ')').each(function() { console.log($(this).find("td").addClass("highlightz")); });
             }
         });
       }
@@ -543,12 +517,6 @@
   <script src="js/modules/data.js"></script>
   <script src="js/modules/exporting.js"></script>
 
-
-
-  <!--<form name="pickthedates" id="pickthedates">
-  <p>Start Date: <input type="text" id="startdate" class="datepicker" />
-  End Date: <input type="text" id="enddate" class="datepicker" />
-  <a href='#' id="submitter">Submit</a>-->
   <div id="topnavbar" style="width:100%; float:left; margin-left: 20px;">  
     <div id='fullname' name='fullname' style='float: left; width:27%'></div>
     <div id='totaltrips' name='totaltrips' style='float: left; width:27%'>---------</div>
@@ -587,7 +555,7 @@
       });
 
       
-      theDataTable = $('#example').dataTable( {
+      theDataTable = $('#LeafTable').dataTable( {
         "bProcessing": true,
         "iDisplayLength":100,
         "sScrollY": "400px",
@@ -599,7 +567,7 @@
             $.getJSON(sSource, aoData, function(json) {
               fnCallback(json);
               if(refreshDataDoodad == true) {
-                allTableData = $('#example tbody tr').map(function(i) {
+                allTableData = $('#LeafTable tbody tr').map(function(i) {
                   var row = {};
                    $(this).find('td').each(function(i) {
                      //var rowName = columns[i];
@@ -612,6 +580,7 @@
             });
         },
 
+        /* silly stuff to spin red X for delete when rolled over */
         "fnDrawCallback": function(oSettings,json) {
           $('.deleteImage').hover(
             function() {
@@ -707,14 +676,13 @@
   }
   
   function updateDataTables(start, end) {
-    thetable = $('#example').dataTable();
+    thetable = $('#LeafTable').dataTable();
     thetable.bProcessing = true;
     thetable.fnReloadAjax('alldata.php?start=' + start + '&end=' + end);
     //thetable.fnDraw();
   }
   
   function updateData(start, end) {
-    /* remmed: not doing markers now */
     clearMarkersOnMap();
     for(n = 0; n <= pathNumber; n++) {
       if(thePath[n]) {
@@ -744,20 +712,17 @@
       startandend = theobject.value.split("|");
     }
     else {
-      //console.log("String object and it is " + theobject)
       startandend = theobject.split("|");
     }
-    //console.log(theobject.value);
-      //  //var startandend = this.value.split("|");
-      //console.log("start is " + startandend[0] + " and end is " + startandend[1]);
-      updateData(startandend[0],startandend[1]);
+
+    updateData(startandend[0],startandend[1]);
       
-      /* change the slider back to its original positions */
-      $( "#slider-range" ).slider("values",0,0);
-      $( "#slider-range" ).slider("values",1,1000);
+    /* change the slider back to its original positions */
+    $( "#slider-range" ).slider("values",0,0);
+    $( "#slider-range" ).slider("values",1,1000);
   }
   </script>
 
-  <table id='example' border="0" cellpadding="0" cellspacing="0" class="pretty"><thead><tr><th></th><th>Date/Time</th><th>Lat</th><th>Lon</th><th><center>Elevation<BR>(GPS)</center></th><th><center>Elevation<BR>(Corrected)<center></th><th>Speed (mph)</th><th>SOC</th><th>GIDS</th><th>SOH</th><th></th></thead><tbody><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
+  <table id='LeafTable' border="0" cellpadding="0" cellspacing="0" class="pretty"><thead><tr><th></th><th>Date/Time</th><th>Lat</th><th>Lon</th><th><center>Elevation<BR>(GPS)</center></th><th><center>Elevation<BR>(Corrected)<center></th><th>Speed (mph)</th><th>SOC</th><th>GIDS</th><th>SOH</th><th></th></thead><tbody><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
 </body>
 </html>
