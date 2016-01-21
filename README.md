@@ -10,3 +10,4 @@ the script to make the database exists in the sql directory.  It comes with a de
 To connect to your database: fill in the appropriate fields in connect.php
 
 Make a directory logs and uploads and make sure that these are writable 
+Video showing the features: https://youtu.be/nnNsMBqrxkM
